@@ -1,0 +1,80 @@
+services:
+  leader:
+    build: .
+    container_name: kv_leader
+    ports:
+      - "5000:5000"
+    environment:
+      - WRITE_QUORUM=5
+      - IS_LEADER=true
+      - PORT=5000
+      - FOLLOWERS=follower1:5000,follower2:5000,follower3:5000,follower4:5000,follower5:5000
+      - MIN_DELAY=0
+      - MAX_DELAY=1000
+    networks:
+      - kv_network
+    depends_on:
+      - follower1
+      - follower2
+      - follower3
+      - follower4
+      - follower5
+
+  follower1:
+    build: .
+    container_name: kv_follower1
+    ports:
+      - "5001:5000"
+    environment:
+      - IS_LEADER=false
+      - PORT=5000
+    networks:
+      - kv_network
+
+  follower2:
+    build: .
+    container_name: kv_follower2
+    ports:
+      - "5002:5000"
+    environment:
+      - IS_LEADER=false
+      - PORT=5000
+    networks:
+      - kv_network
+
+  follower3:
+    build: .
+    container_name: kv_follower3
+    ports:
+      - "5003:5000"
+    environment:
+      - IS_LEADER=false
+      - PORT=5000
+    networks:
+      - kv_network
+
+  follower4:
+    build: .
+    container_name: kv_follower4
+    ports:
+      - "5004:5000"
+    environment:
+      - IS_LEADER=false
+      - PORT=5000
+    networks:
+      - kv_network
+
+  follower5:
+    build: .
+    container_name: kv_follower5
+    ports:
+      - "5005:5000"
+    environment:
+      - IS_LEADER=false
+      - PORT=5000
+    networks:
+      - kv_network
+
+networks:
+  kv_network:
+    driver: bridge
