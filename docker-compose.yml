@@ -1,4 +1,3 @@
-
 services:
   leader:
     build: .
@@ -10,6 +9,8 @@ services:
       - IS_LEADER=true
       - PORT=5000
       - FOLLOWERS=follower1:5000,follower2:5000,follower3:5000,follower4:5000,follower5:5000
+      - SYNC_FOLLOWERS=follower1:5000
+      - ASYNC_FOLLOWERS=follower2:5000,follower3:5000,follower4:5000,follower5:5000
       - MIN_DELAY=0
       - MAX_DELAY=1000
     networks:
@@ -25,7 +26,7 @@ services:
     build: .
     container_name: kv_follower1
     ports:
-      - "5001:5000"
+      - "5001:5000"  # Host 5001 → Container 5000
     environment:
       - IS_LEADER=false
       - PORT=5000
@@ -36,7 +37,7 @@ services:
     build: .
     container_name: kv_follower2
     ports:
-      - "5002:5000"
+      - "5002:5000"  # Host 5002 → Container 5000
     environment:
       - IS_LEADER=false
       - PORT=5000
@@ -47,7 +48,7 @@ services:
     build: .
     container_name: kv_follower3
     ports:
-      - "5003:5000"
+      - "5003:5000"  # Host 5003 → Container 5000
     environment:
       - IS_LEADER=false
       - PORT=5000
@@ -58,7 +59,7 @@ services:
     build: .
     container_name: kv_follower4
     ports:
-      - "5004:5000"
+      - "5004:5000"  # Host 5004 → Container 5000
     environment:
       - IS_LEADER=false
       - PORT=5000
@@ -69,7 +70,7 @@ services:
     build: .
     container_name: kv_follower5
     ports:
-      - "5005:5000"
+      - "5005:5000"  # Host 5005 → Container 5000
     environment:
       - IS_LEADER=false
       - PORT=5000
