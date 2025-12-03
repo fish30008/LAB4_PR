@@ -8,11 +8,11 @@ from typing import Dict, List
 
 app = FastAPI()
 
-# Thread-safe storage using asyncio
+# Thread-safe to prevent race conditions
 storage: Dict[str, str] = {}
 storage_lock = asyncio.Lock()
 
-# Configuration
+# Configuration from dcoker-compose file
 IS_LEADER = os.getenv('IS_LEADER', 'false').lower() == 'true'
 FOLLOWERS = os.getenv('FOLLOWERS', '').split(',') if os.getenv('FOLLOWERS') else []
 WRITE_QUORUM = int(os.getenv('WRITE_QUORUM', '1'))
@@ -30,9 +30,9 @@ class ReplicateRequest(BaseModel):
     value: str
 
 
+# dtypes to not check rep
 async def replicate_to_follower(follower_url: str, key: str, value: str) -> bool:
-    """Replicate a key-value pair to a single follower with random delay"""
-    # Simulate network lag
+    # Simulate network lag from min to max
     delay = random.randint(MIN_DELAY, MAX_DELAY) / 1000.0
     await asyncio.sleep(delay)
 
@@ -49,18 +49,17 @@ async def replicate_to_follower(follower_url: str, key: str, value: str) -> bool
 
 
 async def replicate_to_followers(key: str, value: str) -> bool:
-    """Replicate to all followers concurrently and wait for quorum"""
     if not FOLLOWERS:
         return True
 
-    # Create tasks for all followers concurrently
+    # Create tasks for all followers concurrently to put them in to thread
     tasks = [replicate_to_follower(follower, key, value) for follower in FOLLOWERS]
 
     confirmations = 0
-    # Process results as they complete
-    for coro in asyncio.as_completed(tasks):
+    for res in asyncio.as_completed(tasks):
         try:
-            success = await coro
+            success = await res
+            # semi - sync bc we don't wait till in all quorums will be replicated data
             if success:
                 confirmations += 1
                 # Early exit if quorum reached
@@ -74,15 +73,12 @@ async def replicate_to_followers(key: str, value: str) -> bool:
 
 @app.post("/write")
 async def write(request: WriteRequest):
-    """Write endpoint - only leader accepts writes"""
     if not IS_LEADER:
         raise HTTPException(status_code=403, detail="Only leader accepts writes")
 
-    # Write to leader storage (thread-safe)
     async with storage_lock:
         storage[request.key] = request.value
 
-    # Replicate to followers with semi-synchronous replication
     quorum_reached = await replicate_to_followers(request.key, request.value)
 
     if quorum_reached:
@@ -93,11 +89,12 @@ async def write(request: WriteRequest):
 
 @app.get("/read")
 async def read(key: str):
+    # thread save read, to not be randomly displayed
     async with storage_lock:
         value = storage.get(key)
 
     if value is None:
-        raise HTTPException(status_code=404, detail="Key not found")
+        raise HTTPException(status_code=404, detail="Key error")
 
     return {"key": key, "value": value}
 
@@ -105,9 +102,9 @@ async def read(key: str):
 @app.post("/replicate")
 async def replicate(request: ReplicateRequest):
     if IS_LEADER:
-        raise HTTPException(status_code=403, detail="Leader does not accept replication")
+        raise HTTPException(status_code=403, detail="Wrong address, this is leader")
 
-    # Write to follower storage (thread-safe)
+    # thread save write
     async with storage_lock:
         storage[request.key] = request.value
 
@@ -116,12 +113,14 @@ async def replicate(request: ReplicateRequest):
 
 @app.get("/dump")
 async def dump():
+    # get all data from storage
     async with storage_lock:
         return dict(storage)
 
 
 @app.get("/health")
 async def health():
+    # check if leader is available
     return {"status": "healthy", "is_leader": IS_LEADER}
 
 

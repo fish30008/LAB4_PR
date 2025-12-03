@@ -12,16 +12,19 @@ WRITE_QUORUM = 5
 OUTPUT_FILE = f"perf_results_q{WRITE_QUORUM}.json"
 
 
-async def write_once(client, key, value):
+async def write(client, key, value):
     t0 = time.perf_counter()
     try:
+        # write to the leader
         r = await client.post(f"{LEADER}/write", json={
             "key": key,
             "value": value
-        }, timeout=5.0)
+        }, timeout=10.0)
         ok = (r.status_code == 200)
     except:
         ok = False
+
+    # returns execution time aka latency
     t1 = time.perf_counter()
     return (t1 - t0), ok, key, value
 
@@ -36,12 +39,12 @@ async def run_all():
             async with sem:
                 k = KEYS[i % len(KEYS)]
                 v = f"val-{i}-{time.time()}"
-                lat, ok, key, value = await write_once(client, k, v)
+                lat, ok, key, value = await write(client, k, v)
                 return lat, ok, key, value
 
         tasks = [asyncio.create_task(task(i)) for i in range(NUM_WRITES)]
-        for coro in asyncio.as_completed(tasks):
-            results.append(await coro)
+        for job in asyncio.as_completed(tasks):
+            results.append(await job)
 
     return results
 
@@ -49,6 +52,7 @@ async def run_all():
 async def fetch_state(url):
     try:
         async with httpx.AsyncClient() as client:
+            ## get all data
             r = await client.get(f"{url}/dump", timeout=5.0)
             return r.json()
     except:
@@ -57,6 +61,7 @@ async def fetch_state(url):
 
 def analyze(results):
     latencies = [lat for lat, ok, _, _ in results if ok]
+    # count if for some reason value was not written
     fails = sum(1 for _, ok, _, _ in results if not ok)
 
     metrics = {
@@ -68,7 +73,7 @@ def analyze(results):
     if latencies:
         metrics["avg_latency"] = statistics.mean(latencies)
         metrics["median_latency"] = statistics.median(latencies)
-        metrics["p95_latency"] = statistics.quantiles(latencies, n=100)[94]
+        metrics["p95_latency"] = statistics.quantiles(latencies, n=100)[94] #
     else:
         metrics["avg_latency"] = None
         metrics["median_latency"] = None
