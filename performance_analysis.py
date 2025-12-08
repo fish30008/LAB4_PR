@@ -7,7 +7,7 @@ FOLLOWERS = os.getenv("FOLLOWERS", "http://localhost:5001,http://localhost:5002,
 NUM_WRITES = int(os.getenv("NUM_WRITES", "100"))
 CONCURRENCY = int(os.getenv("CONCURRENCY", "10"))
 KEYS = [f"key{i}" for i in range(10)]
-WRITE_QUORUM = 5
+WRITE_QUORUM = 52
 
 OUTPUT_FILE = f"perf_results_q{WRITE_QUORUM}.json"
 

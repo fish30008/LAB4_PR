@@ -6,8 +6,8 @@ chronous, and the others are asynchronous. If the synchronous follower becomes
  guarantees that you have an up-to-date copy of the data on at least two nodes: the
  leader and one synchronous follower. This configuration is sometimes also called
  semi-synchronous
+ The behavior of await coroutine is effectively the same as invoking a regular, synchronous Python function
  '''
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import os
@@ -65,18 +65,13 @@ async def replicate_to_follower(follower_url: str, key: str, value: str, is_sync
 async def replicate_semi_sync(key: str, value: str) -> Tuple[bool, List[str]]:
     failed_sync_followers = []
     # sync part
-    sync_tasks = [
-        replicate_to_follower(SYNC_FOLLOWERS[0], key, value, is_sync=True)
-    ]
     sync_success = False
-    for task in asyncio.as_completed(sync_tasks):
-        try:
-            if await task:
-                sync_success = True
-                break
-        except Exception as e:
-            print(f"Sync replication error: {e}")
-            continue
+    task = replicate_to_follower(SYNC_FOLLOWERS[0], key, value, is_sync=True)
+    try:
+        if await task:
+            sync_success = True
+    except Exception as e:
+        print(f"Sync replication error: {e}")
 
     if not sync_success:
         failed_sync_followers = SYNC_FOLLOWERS.copy()
